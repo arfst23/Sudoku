@@ -1,0 +1,45 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Fcntl 'SEEK_SET';
+
+die "usage: $0 file\n"
+  unless @ARGV == 1;
+my ($file) = @ARGV;
+
+sysopen F, $file, 0 or die "$0: open $file: $!\n";
+my $size = (stat F)[7];
+die "$0: file size not multiple of 82: $size\n"
+  if ($size % 82);
+
+my $records = $size / 82;
+
+# increase is relative prime to $records
+# increase / $records is near to 1 / phi
+# increase ~ $records / phi;
+my $increase = $records == 100000000 ? 61803399
+	     : $records ==  50000000 ? 30901699
+	     : $records ==  20000000 ? 12360679
+	     : $records ==  10000000 ?  6180339
+	     : $records ==   5000000 ?  3090169
+	     : $records ==   2000000 ?  1236067
+	     : $records ==   1000000 ?   618033
+	     : $records ==      1000 ?      619
+	     : undef;
+
+my $n = sysread F, $_, 82;
+die "$0: read $file at 0: $!"
+  if ($n != 82);
+print "$_";
+
+for (my $i = $increase; $i; $i = $i + $increase < $records ? $i + $increase
+                                                           : $i + $increase - $records)
+{
+  die "$0 fetch $i out of $records\n"
+    unless ($i < $records);
+  sysseek F, 82 * $i, SEEK_SET;
+  my $n = sysread F, $_, 82;
+  die "$0: read $file at $i: $!"
+    if ($n != 82);
+  print "$_";
+}
